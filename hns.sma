@@ -111,6 +111,8 @@ new bool:gIsConnected[33];
 new bool:gRestartAttempt[33];
 new bool:gAllowSlash;
 
+new bool:gRoundendFight;
+
 public plugin_init() 
 {
 	register_plugin(PLUGIN, VERSION, AUTHOR)
@@ -323,13 +325,48 @@ public eventEndRound()
 	return PLUGIN_CONTINUE;
 }
 
+new changeroundtime
 public eventNewRound()
 {	
 	if(get_pcvar_num(gCvarRemoveObjects) && gRound == 0)
 		RemoveEntities();
 
 	gRound++
+	gRoundendFight = false
+
+	new Float:fRoundtime = get_cvar_float("mp_roundtime")*60.0
+	new Float:fFreezetime = get_cvar_float("mp_freezetime")
+
+	remove_task(1133)
+	set_task(fRoundtime+fFreezetime-16.0, "task_redraw", 1133)
+
+	new num = get_playersnum()
+	if(num > 11)
+	{
+		set_cvar_float("mp_roundtime", 2.5)
+		if(!changeroundtime)
+		{
+			changeroundtime = 1
+			client_color(0, "/y* /g服务器人数达到/y12/g人，回合时间调整为/y2.5/g分钟!")
+		}
+	}
+	else
+	{
+		set_cvar_float("mp_roundtime", 3.0)
+		if(changeroundtime)
+		{
+			changeroundtime = 0
+			client_color(0, "/y* /g服务器人数少于/y12/g人，回合时间调整为/y3/g分钟!")
+		}
+	}
+
 	return PLUGIN_CONTINUE;
+}
+
+public task_redraw()
+{
+	gRoundendFight = true
+	client_color(0, "/y* /ctr回合快要结束了，现在T允许使用刀子！！！")
 }
 
 public eventRestartAttempt() 
@@ -392,6 +429,8 @@ public GiveItems(id)
 				
 			if(get_pcvar_num(gCvarHidersArmor))
 				cs_set_user_armor(id, get_pcvar_num(gCvarHidersArmor), CS_ARMOR_KEVLAR)
+
+			//fm_give_item(id, "weapon_hegrenade")
 		}
 		
 		case 2:
@@ -522,12 +561,17 @@ public fwdCmdStart(id, handle)
 	{
 		static button
 		button = get_uc(handle, UC_Buttons);
+		
+		if(gRoundendFight){
+			if(button & IN_ATTACK && !gAllowSlash) 
+				button = (button & ~IN_ATTACK) | IN_ATTACK2;
+		}else{
+			if((button & IN_ATTACK))
+				button &= ~IN_ATTACK
 				
-		if((button & IN_ATTACK))
-			button &= ~IN_ATTACK
-				
-		if((button & IN_ATTACK2))
-			button &= ~IN_ATTACK2
+			if((button & IN_ATTACK2))
+				button &= ~IN_ATTACK2
+		}
 				
 		set_uc(handle, UC_Buttons, button);
 		
@@ -952,4 +996,18 @@ FindPlayer()
 	}
 
 	return -1;
+}
+
+client_color(const id, const input[], any:...)
+{
+	new msg[191], iLen = formatex(msg, 190, "^x03[Ser]^x04")
+	vformat(msg[iLen], 190 - iLen, input, 3)
+	replace_all(msg, 190, "/g", "^4")
+	replace_all(msg, 190, "/y", "^1")
+	replace_all(msg, 190, "/ctr", "^3")
+	replace_all(msg, 190, "/w", "^0")
+	message_begin(id ? MSG_ONE : MSG_BROADCAST, get_user_msgid( "SayText" ), _, id)
+	write_byte(1)
+	write_string(msg)
+	message_end()
 }

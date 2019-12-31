@@ -23,6 +23,8 @@ new const gSoundBreak[] = "warcraft3/impalelaunch1.wav";
 new bool:gIsFrosted[33];
 new bool:gRestartAttempt[33];
 
+new gFrozeCount[33];
+
 public plugin_init() 
 {
 	register_plugin("HNS_FROSTNADE", "1.0", "Jon")
@@ -75,6 +77,7 @@ public event_ResetHud(id)
 
 public event_PlayerSpawn(id) 
 {
+	gFrozeCount[id] = 0;
 	if(gIsFrosted[id]) 
 		RemoveFrost(id);
 }
@@ -180,6 +183,8 @@ public ExplodeFrost(const args[2])
 					continue;
 		}
 		
+		gFrozeCount[victim] ++;
+
 		static Red, Green, Blue
 		GetColor(Red, Green, Blue)		
 	
@@ -220,7 +225,9 @@ public ExplodeFrost(const args[2])
 				set_pev(victim, pev_health, health);
 		}
 		gIsFrosted[victim] = true;	
-		set_task(get_pcvar_float(gCvarDuration), "RemoveFrost", victim)
+		new Float:dur = get_pcvar_float(gCvarDuration) - 0.5*gFrozeCount[victim];
+		if(dur<1.0) dur = 1.0;
+		set_task(dur, "RemoveFrost", victim);
 	}
 	
 	engfunc(EngFunc_RemoveEntity, ent)
