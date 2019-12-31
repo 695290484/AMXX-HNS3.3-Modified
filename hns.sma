@@ -1040,7 +1040,10 @@ public fw_TakeDamage(victim, inflictor, attacker, Float:damage, damage_type)
 {
 	if(damage_type & (1<<24) && pev_valid(inflictor))
 	{
-		SetHamParamFloat(4, damage*0.4)
+		if(gTimer > 0)
+			SetHamParamFloat(4, damage*0.25)
+		else
+			SetHamParamFloat(4, 0.0)
 	}
 	return HAM_IGNORED
 }
