@@ -446,6 +446,7 @@ public GiveItems(id)
 
 			fm_give_item(id, "weapon_flashbang")
 			fm_give_item(id, "weapon_hegrenade")
+			cs_set_user_bpammo(id, CSW_FLASHBANG, 1)
 		}
 		
 		case 2:
