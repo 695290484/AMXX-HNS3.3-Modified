@@ -347,7 +347,7 @@ public eventNewRound()
 		if(!changeroundtime)
 		{
 			changeroundtime = 1
-			client_color(0, "/y* /g·şÎñÆ÷ÈËÊı´ïµ½/y12/gÈË£¬»ØºÏÊ±¼äµ÷ÕûÎª/y2.5/g·ÖÖÓ!")
+			client_color(0, "/y* /gæœåŠ¡å™¨äººæ•°è¾¾åˆ°/y12/gäººï¼Œå›åˆæ—¶é—´è°ƒæ•´ä¸º/y2.5/gåˆ†é’Ÿ!")
 		}
 	}
 	else
@@ -356,7 +356,7 @@ public eventNewRound()
 		if(changeroundtime)
 		{
 			changeroundtime = 0
-			client_color(0, "/y* /g·şÎñÆ÷ÈËÊıÉÙÓÚ/y12/gÈË£¬»ØºÏÊ±¼äµ÷ÕûÎª/y3/g·ÖÖÓ!")
+			client_color(0, "/y* /gæœåŠ¡å™¨äººæ•°å°‘äº/y12/gäººï¼Œå›åˆæ—¶é—´è°ƒæ•´ä¸º/y3/gåˆ†é’Ÿ!")
 		}
 	}
 
@@ -366,7 +366,7 @@ public eventNewRound()
 public task_redraw()
 {
 	gRoundendFight = true
-	client_color(0, "/y* /ctr»ØºÏ¿ìÒª½áÊøÁË£¬ÏÖÔÚTÔÊĞíÊ¹ÓÃµ¶×Ó£¡£¡£¡")
+	client_color(0, "/y* /ctrå›åˆå¿«è¦ç»“æŸäº†ï¼Œç°åœ¨Tå…è®¸ä½¿ç”¨åˆ€å­ï¼ï¼ï¼")
 }
 
 public eventRestartAttempt() 
