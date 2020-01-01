@@ -2,6 +2,9 @@
 #include <amxmisc>
 #include <cstrike>
 #include <hamsandwich>
+
+native hns_fronade_remove(id)
+
 #tryinclude <fakemeta_util>
 
 #if !defined _fakemeta_util_included
@@ -445,7 +448,7 @@ public GiveItems(id)
 				cs_set_user_armor(id, get_pcvar_num(gCvarHidersArmor), CS_ARMOR_KEVLAR)
 
 			fm_give_item(id, "weapon_flashbang")
-			fm_give_item(id, "weapon_hegrenade")
+			//fm_give_item(id, "weapon_hegrenade")
 			cs_set_user_bpammo(id, CSW_FLASHBANG, 1)
 		}
 		
@@ -462,8 +465,8 @@ public GiveItems(id)
 			if(get_pcvar_num(gCvarSeekersSmokegrenade))
 				fm_give_item(id, "weapon_smokegrenade")
 				
-			if(get_pcvar_num(gCvarSeekersHegrenade))
-				fm_give_item(id, "weapon_hegrenade")
+			//if(get_pcvar_num(gCvarSeekersHegrenade))
+			fm_give_item(id, "weapon_hegrenade")
 				
 			if(get_pcvar_num(gCvarSeekersArmor))
 				cs_set_user_armor(id, get_pcvar_num(gCvarSeekersArmor), CS_ARMOR_KEVLAR)
@@ -620,11 +623,18 @@ public fwdCmdStart(id, handle)
 
 public fwdTouch(ptr, ptd) 
 {
-	if(!get_pcvar_num(gCvarRemoveWeapons) || !pev_valid(ptr) || !is_user_connected(ptd)) 
+	if(!pev_valid(ptr))
 		return FMRES_IGNORED;
-		
+
 	new classname[32];
 	pev(ptr, pev_classname, classname, 31);
+	if(!strcmp(classname, "grenade") && pev(ptr, pev_iuser4) == 10086){
+		set_pev(ptr, pev_dmgtime, get_gametime()+0.1)
+		set_pev(ptr, pev_iuser4, 1)
+	}
+
+	if(!get_pcvar_num(gCvarRemoveWeapons) || !is_user_connected(ptd)) 
+		return FMRES_IGNORED;
 			
 	if(equali(classname,"weaponbox")) 
 	{        
@@ -1040,10 +1050,13 @@ public fw_TakeDamage(victim, inflictor, attacker, Float:damage, damage_type)
 {
 	if(damage_type & (1<<24) && pev_valid(inflictor))
 	{
-		if(gTimer > 0)
-			SetHamParamFloat(4, damage*0.25)
-		else
-			SetHamParamFloat(4, 0.0)
+		//if(gTimer > 0)
+		//	SetHamParamFloat(4, 0.0)
+		//else
+		//	SetHamParamFloat(4, damage*0.25)
+		SetHamParamFloat(4, 0.0)
+
+		hns_fronade_remove(victim)
 	}
 	return HAM_IGNORED
 }
@@ -1057,6 +1070,7 @@ public fw_SetModel(entity, const szModel[])
 		new Float:dmgtime
 		pev(entity, pev_dmgtime, dmgtime)
 		set_pev(entity, pev_dmgtime, get_gametime()+4.0)
+		set_pev(entity, pev_iuser4, 10086)
 	}
 	return FMRES_IGNORED
 }
