@@ -10,28 +10,33 @@ new gStatsId[MAX_STATS]
 new gStats[33][MAX_STATS]			// 总的
 new gRoundStats[33][MAX_STATS]		// 回合
 new gAchivname[MAX_STATS][128]
-new gShowlevel[MAX_STATS]
+new gShowlevel[MAX_STATS]			// 决定短语显示
+new gScore[MAX_STATS]			// 决定mvp得分
 new gShowHudParam[MAX_STATS][32]
 
 new gLastAchi = -1, gCurrent = 0, gReset
 
 new xKill[33], mKill
 new xThrow[33], mThrow
+new xFlash[33]
+new xFirstKill[33]
 
 new gRound
 public plugin_init(){
 	register_plugin("CS ACHIVEMNT SYSTEM", "1.0", "zhiJiaN")
 	register_logevent("eventEndRound"  ,2,"0=World triggered", "1=Round_Draw", "1=Round_End");
 	register_event("HLTV", "eventNewRound", "a", "1=0", "2=0");
-	register_message(get_user_msgid("DeathMsg"), "Message_DeathMsg")
+	register_message(get_user_msgid("DeathMsg"), "msgDeathMsg")
+	register_message(get_user_msgid("ScreenFade"), "msgScreenFade");
 	register_forward(FM_SetModel, "fw_SetModel")
 
-	register_stats(1, "%s消灭了%s个敌人!", 50)
-	register_stats(2, "%s验证了万有引力定律!", 46)
-	register_stats(3, "%s丢出了%s个投掷物!", 47)
-	register_stats(4, "%s使用手雷解救了被冰冻的队友!", 47)
-	register_stats(5, "%s冻住了%s个敌人!", 47)
-	register_stats(6, "%s使用闪光弹致盲了%s个敌人!", 47)
+	register_stats(1, "%s消灭了%s个敌人!", 50, 10)
+	register_stats(2, "%s验证了万有引力定律!", 46, -2)
+	register_stats(3, "%s丢出了%s个投掷物!", 47, 1)
+	register_stats(4, "%s使用手雷解救了被冰冻的队友!", 47, 3)
+	register_stats(5, "%s使用冰冻弹冻住了%s个敌人!", 47, 2)
+	register_stats(6, "%s在被闪光弹致盲时击杀了敌人!", 46, 1)
+	register_stats(7, "%s在本回合开始%d秒后第一个杀人!", 47, 1)
 }
 
 
@@ -43,8 +48,11 @@ public client_putinserver(id)
 	}
 	xKill[id] = 0
 	xThrow[id] = 0
+	xFlash[id] = 0
+	xFirstKill[id] = 0
 }
 
+new gCountSec
 public eventNewRound(){
 	gRound++
 
@@ -54,9 +62,19 @@ public eventNewRound(){
 		}
 		xKill[id] = 0
 		xThrow[id] = 0
+		xFlash[id] = 0
+		xFirstKill[id] = 0
 	}
 	mKill = 0
 	mThrow = 0
+
+	gCountSec = 0
+	remove_task(3311)
+	set_task(1.0, "task_c", 3311, _, _, "b")
+}
+
+public task_c(){
+	gCountSec ++
 }
 
 public eventEndRound()
@@ -124,7 +142,7 @@ public updateStatsByIndex(id, index, count){
 	gRoundStats[id][index] += count
 }
 
-public register_stats(statsid, const achiv[], showlevel){
+public register_stats(statsid, const achiv[], showlevel, score){
 	if(gCount >= MAX_STATS){
 		server_print("achivement count over limit!")
 		return -1
@@ -133,6 +151,7 @@ public register_stats(statsid, const achiv[], showlevel){
 	formatex(gAchivname[gCount], charsmax(gAchivname[]), "%s", achiv)
 	gShowlevel[gCount] = showlevel
 	gStatsId[gCount] = statsid
+	gScore[gCount] = score
 		
 	gCount ++
 
@@ -224,10 +243,10 @@ ShowMVP(const input[], any:...)
 }
 
 
-// ===== 事件 =====
+// ===== 消息和事件 =====
 
 
-public Message_DeathMsg(msg_id, msg_dest, msg_entity)
+public msgDeathMsg(msg_id, msg_dest, msg_entity)
 {
 	new killer = get_msg_arg_int(1)
 	new victim = get_msg_arg_int(2)
@@ -239,10 +258,41 @@ public Message_DeathMsg(msg_id, msg_dest, msg_entity)
 		if(xKill[killer]>=3 && xKill[killer] >= mKill){
 			mKill = xKill[killer]
 		}
+
+		if(xFlash[killer]){
+			updateStatsByStatsId(killer, 6, 1)
+		}
+
+		if(gCountSec<25){
+			remove_task(3311)
+			xFirstKill[killer] = gCountSec
+			updateStatsByStatsId(killer, 7, 1)
+			updateParamByStatsId(killer, 7, "%d", gCountSec)
+		}
 	}
 	
 }
 
+public msgScreenFade(msgid, dest, id)
+{
+	if(is_user_alive(id) && 2 == get_user_team(id)){
+		static data[4];
+		data[0] = get_msg_arg_int(4); 
+		data[1] = get_msg_arg_int(5)
+		data[2] = get_msg_arg_int(6); 
+		data[3] = get_msg_arg_int(7)
+			
+		if(data[0] == 255 && data[1] == 255 && data[2] == 255 && data[3] > 199){
+			xFlash[id] = 1
+			remove_task(id+12331)
+			set_task(3.0, "remove_flashflag", id+12331)
+		}
+	}
+}
+
+public remove_flashflag(id){
+	xFlash[id-12331] = 0
+}
 
 public fw_SetModel(entity, const model[])
 {
@@ -252,7 +302,6 @@ public fw_SetModel(entity, const model[])
 	new id = pev(entity, pev_owner)
 	if(!is_user_connected(id))
 		return FMRES_IGNORED
-	new t = get_user_team(id)
 
 	if(!strcmp(model,"models/w_hegrenade.mdl") || !strcmp(model,"models/w_smokegrenade.mdl") || !strcmp(model,"models/w_flashbang.mdl"))
 	{
