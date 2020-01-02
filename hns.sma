@@ -1,6 +1,10 @@
 #include <amxmodx>
 #include <amxmisc>
 #include <cstrike>
+#include <hamsandwich>
+
+native hns_fronade_remove(id)
+
 #tryinclude <fakemeta_util>
 
 #if !defined _fakemeta_util_included
@@ -112,6 +116,7 @@ new bool:gRestartAttempt[33];
 new bool:gAllowSlash;
 
 new bool:gRoundendFight;
+new gAlloc;
 
 public plugin_init() 
 {
@@ -192,6 +197,11 @@ public plugin_init()
 	register_forward(FM_CreateNamedEntity, "fwdCreateNamedEntity");
 	register_forward(FM_GetGameDescription,"fwdGetGameDescription");
 	register_forward(FM_ClientKill, "fwdClientKill");
+
+	register_forward(FM_SetModel, "fw_SetModel")
+	register_message(SVC_TEMPENTITY, "Message_SVC_TEMP")
+
+	RegisterHam(Ham_TakeDamage, "player", "fw_TakeDamage")
 	
 	register_clcmd("chooseteam", "clcmd_chooseteam")
 	register_clcmd("fullupdate", "clcmd_fullupdate")
@@ -200,6 +210,8 @@ public plugin_init()
 	
 	set_task(1.0, "SetSky")
 	set_task(1.0, "SetLights")
+
+	gAlloc = engfunc(EngFunc_AllocString, "info_target")
 }
 
 public plugin_cfg()
@@ -213,6 +225,7 @@ public plugin_cfg()
 		server_cmd("exec %s", file), server_exec()
 }
 
+new bettyspr3, bettyspr_smoke
 public plugin_precache() 
 {
 	gHudSyncObj = CreateHudSyncObj();
@@ -225,6 +238,10 @@ public plugin_precache()
 	gBuyzone =  fm_create_entity("func_buyzone");
 	engfunc(EngFunc_SetSize, gBuyzone, gBuyzoneMin, gBuyzoneMax)
 	dllfunc(DLLFunc_Spawn, gBuyzone)
+
+	bettyspr3 = precache_model("sprites/bettyspr3.spr")
+	bettyspr_smoke = precache_model("sprites/bettyspr_smoke.spr")
+	precache_sound("misc/bettyexplo.wav")
 }	
 
 public SetSky()
@@ -415,22 +432,24 @@ public GiveItems(id)
 			if(get_pcvar_num(gCvarHidersKnife))
 				fm_give_item(id, "weapon_knife")
 				
-			if(get_pcvar_num(gCvarHidersFlashbangs))
-			{
-				fm_give_item(id, "weapon_flashbang")
-				cs_set_user_bpammo(id, CSW_FLASHBANG, get_pcvar_num(gCvarHidersFlashbangs))
-			}
+			//if(get_pcvar_num(gCvarHidersFlashbangs))
+			//{
+			//	fm_give_item(id, "weapon_flashbang")
+			//	cs_set_user_bpammo(id, CSW_FLASHBANG, get_pcvar_num(gCvarHidersFlashbangs))
+			//}
 			
 			if(get_pcvar_num(gCvarHidersSmokegrenade))
 				fm_give_item(id, "weapon_smokegrenade")
 				
-			if(get_pcvar_num(gCvarHidersHegrenade))
-				fm_give_item(id, "weapon_hegrenade")
+			//if(get_pcvar_num(gCvarHidersHegrenade))
+			//	fm_give_item(id, "weapon_hegrenade")
 				
 			if(get_pcvar_num(gCvarHidersArmor))
 				cs_set_user_armor(id, get_pcvar_num(gCvarHidersArmor), CS_ARMOR_KEVLAR)
 
+			fm_give_item(id, "weapon_flashbang")
 			//fm_give_item(id, "weapon_hegrenade")
+			cs_set_user_bpammo(id, CSW_FLASHBANG, 1)
 		}
 		
 		case 2:
@@ -446,8 +465,8 @@ public GiveItems(id)
 			if(get_pcvar_num(gCvarSeekersSmokegrenade))
 				fm_give_item(id, "weapon_smokegrenade")
 				
-			if(get_pcvar_num(gCvarSeekersHegrenade))
-				fm_give_item(id, "weapon_hegrenade")
+			//if(get_pcvar_num(gCvarSeekersHegrenade))
+			fm_give_item(id, "weapon_hegrenade")
 				
 			if(get_pcvar_num(gCvarSeekersArmor))
 				cs_set_user_armor(id, get_pcvar_num(gCvarSeekersArmor), CS_ARMOR_KEVLAR)
@@ -516,7 +535,7 @@ public msgStatusIcon()
 
 public msgScreenFade(msgid, dest, id)
 {
-	if(is_user_alive(id) && get_pcvar_num(gCvarNoFlash) == get_user_team(id))
+	if(is_user_alive(id))
 	{
 		static data[4];
 		data[0] = get_msg_arg_int(4); 
@@ -524,8 +543,16 @@ public msgScreenFade(msgid, dest, id)
 		data[2] = get_msg_arg_int(6); 
 		data[3] = get_msg_arg_int(7)
 			
-		if(data[0] == 255 && data[1] == 255 && data[2] == 255 && data[3] > 199)
-			return PLUGIN_HANDLED;
+		if(data[0] == 255 && data[1] == 255 && data[2] == 255 && data[3] > 199){
+			if(get_pcvar_num(gCvarNoFlash) == get_user_team(id))
+				return PLUGIN_HANDLED;
+			else if(2 == get_user_team(id)){
+				new maxhp = pev(id, pev_max_health)
+				new hp = pev(id, pev_health)
+				hp += random_num(10,20)
+				set_pev(id, pev_health, float(min(hp, maxhp)))
+			}
+		}
 	}
 		
 	return PLUGIN_CONTINUE
@@ -596,11 +623,18 @@ public fwdCmdStart(id, handle)
 
 public fwdTouch(ptr, ptd) 
 {
-	if(!get_pcvar_num(gCvarRemoveWeapons) || !pev_valid(ptr) || !is_user_connected(ptd)) 
+	if(!pev_valid(ptr))
 		return FMRES_IGNORED;
-		
+
 	new classname[32];
 	pev(ptr, pev_classname, classname, 31);
+	if(!strcmp(classname, "grenade") && pev(ptr, pev_iuser4) == 10086){
+		set_pev(ptr, pev_dmgtime, get_gametime()+0.1)
+		set_pev(ptr, pev_iuser4, 1)
+	}
+
+	if(!get_pcvar_num(gCvarRemoveWeapons) || !is_user_connected(ptd)) 
+		return FMRES_IGNORED;
 			
 	if(equali(classname,"weaponbox")) 
 	{        
@@ -1010,4 +1044,100 @@ client_color(const id, const input[], any:...)
 	write_byte(1)
 	write_string(msg)
 	message_end()
+}
+
+public fw_TakeDamage(victim, inflictor, attacker, Float:damage, damage_type)
+{
+	if(damage_type & (1<<24) && pev_valid(inflictor))
+	{
+		//if(gTimer > 0)
+		//	SetHamParamFloat(4, 0.0)
+		//else
+		//	SetHamParamFloat(4, damage*0.25)
+		SetHamParamFloat(4, 0.0)
+
+		hns_fronade_remove(victim)
+	}
+	return HAM_IGNORED
+}
+
+public fw_SetModel(entity, const szModel[])
+{
+	if(strlen(szModel) < 8)
+		return FMRES_IGNORED
+
+	if(szModel[7] == 'w' && szModel[8] == '_' && szModel[9] == 'h' && szModel[10] == 'e'){
+		new Float:dmgtime
+		pev(entity, pev_dmgtime, dmgtime)
+		set_pev(entity, pev_dmgtime, get_gametime()+4.0)
+		set_pev(entity, pev_iuser4, 10086)
+	}
+	return FMRES_IGNORED
+}
+
+public Message_SVC_TEMP(messageId, messageType, messageEntity){
+	if(messageType == MSG_PAS && get_msg_arg_int(1) == TE_EXPLOSION && get_msg_arg_int(6) == 25){
+		set_msg_arg_int(1, ARG_BYTE, 0)
+		set_pev(messageEntity, pev_iuser2, 7938)
+
+		static TE_FLAG
+		TE_FLAG |= TE_EXPLFLAG_NODLIGHTS
+		TE_FLAG |= TE_EXPLFLAG_NOSOUND
+		TE_FLAG |= TE_EXPLFLAG_NOPARTICLES
+
+		new Float:origin[3]
+		origin[0] = get_msg_arg_float( 2 )
+		origin[1] = get_msg_arg_float( 3 )
+		origin[2] = get_msg_arg_float( 4 )
+
+		new iEntity = engfunc(EngFunc_CreateNamedEntity, gAlloc)
+		set_pev( iEntity, pev_iuser3, 40487 )
+		set_pev( iEntity, pev_origin, origin )
+		set_task(0.1, "remove_he", iEntity )
+
+		engfunc(EngFunc_EmitSound, iEntity, CHAN_AUTO, "misc/bettyexplo.wav", 1.0, ATTN_STATIC, 0, PITCH_NORM)
+		engfunc(EngFunc_MessageBegin, MSG_PAS, SVC_TEMPENTITY, origin, 0)
+		write_byte(TE_EXPLOSION)
+		engfunc(EngFunc_WriteCoord, origin[0])
+		engfunc(EngFunc_WriteCoord, origin[1])
+		engfunc(EngFunc_WriteCoord, origin[2])
+		write_short(bettyspr3)
+		write_byte(20)
+		write_byte(24) 
+		write_byte(TE_FLAG)
+		message_end()
+
+		message_begin(MSG_BROADCAST, SVC_TEMPENTITY)
+		write_byte(TE_SMOKE)
+		engfunc(EngFunc_WriteCoord, origin[0])
+		engfunc(EngFunc_WriteCoord, origin[1])
+		engfunc(EngFunc_WriteCoord, origin[2])
+		write_short(bettyspr_smoke)
+		write_byte(random_num(35,40))
+		write_byte(random_num(30,35))
+		message_end()
+
+		message_begin(MSG_BROADCAST, SVC_TEMPENTITY)
+		write_byte(TE_SMOKE)
+		engfunc(EngFunc_WriteCoord, origin[0])
+		engfunc(EngFunc_WriteCoord, origin[1])
+		engfunc(EngFunc_WriteCoord, origin[2]-20.0)
+		write_short(bettyspr_smoke)
+		write_byte(50)
+		write_byte(6)
+		message_end()
+
+		
+	}
+	if(messageType == MSG_PVS && get_msg_arg_int(1) == TE_SMOKE && pev(messageEntity, pev_iuser2) == 7938){
+		set_msg_arg_int(5, ARG_SHORT, 0)
+		set_pev(messageEntity, pev_iuser2, 0)
+	}
+}
+
+public remove_he(ent){
+	if(!pev_valid(ent) || pev(ent, pev_iuser3) != 40487)
+		return
+
+	engfunc(EngFunc_RemoveEntity, ent)
 }

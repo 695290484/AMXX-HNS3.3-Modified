@@ -45,6 +45,10 @@ public plugin_init()
 	register_forward(FM_SetModel, "fwd_SetModel");
 }
 
+public plugin_natives(){
+	register_native("hns_fronade_remove", "RemoveFrost", 1)
+}
+
 public plugin_precache()
 {
 	gTrail = precache_model(gModelTrail)
