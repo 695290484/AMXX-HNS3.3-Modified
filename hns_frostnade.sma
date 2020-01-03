@@ -25,6 +25,14 @@ new bool:gRestartAttempt[33];
 
 new gFrozeCount[33];
 
+native cas_register_stats(statsid, const achiv[], showlevel, score)
+native cas_updateStatsByStatsId(id, statsid, count)
+native cas_updateParamByStatsId(id, statsid, const str[], any:...)
+forward cas_fw_roundend()
+forward cas_fw_roundstart()
+
+new xFroz[33], mFroz
+
 public plugin_init() 
 {
 	register_plugin("HNS_FROSTNADE", "1.0", "Jon")
@@ -43,6 +51,25 @@ public plugin_init()
 	
 	register_forward(FM_PlayerPreThink,"fwd_PlayerPreThink");
 	register_forward(FM_SetModel, "fwd_SetModel");
+
+	cas_register_stats(100, "[n]使用冰冻弹冻住了%s个敌人!", 47, 2)
+}
+
+public cas_fw_roundstart(){
+	arrayset(xFroz, 0, 33)
+	mFroz = 0
+}
+
+public cas_fw_roundend(){
+	for(new id=1;id<=get_maxplayers();++id){
+		if(!is_user_connected(id)) continue
+
+		client_print(id,print_chat,"%d==%d", xFroz[id],mFroz)
+		if(mFroz == xFroz[id] && mFroz >= 3){
+			cas_updateStatsByStatsId(id, 100, 1)
+			cas_updateParamByStatsId(id, 100, "%d", mFroz)
+		}
+	}
 }
 
 public plugin_natives(){
@@ -166,6 +193,7 @@ public ExplodeFrost(const args[2])
 	static victim
 	victim = -1;
 	
+	new frz
 	while((victim = engfunc(EngFunc_FindEntityInSphere, victim, originF, 240.0)) != 0) 
 	{
 		if(!is_user_alive(victim) || gIsFrosted[victim])
@@ -232,8 +260,15 @@ public ExplodeFrost(const args[2])
 		new Float:dur = get_pcvar_float(gCvarDuration) - 0.5*gFrozeCount[victim];
 		if(dur<1.0) dur = 1.0;
 		set_task(dur, "RemoveFrost", victim);
+
+		frz ++
 	}
 	
+	if(frz >= 3 && frz > mFroz){
+		mFroz = frz
+		xFroz[id] = frz
+	}
+
 	engfunc(EngFunc_RemoveEntity, ent)
 }
 
