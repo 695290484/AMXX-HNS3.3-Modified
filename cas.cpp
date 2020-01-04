@@ -13,6 +13,7 @@
 
 #include<amxmodx>
 #include<fakemeta>
+#include <hamsandwich>
 
 #define MAX_STATS 100
 new gCount
@@ -35,16 +36,23 @@ new xFlash[33]
 new xFirstKill[33]
 new xAliveRound[33], mAR
 new xAliveTime[33], mAT
+new xKnifeCount[33], mKC
 new mRoundTime
+
+#define MAX_MUSIC 32
+new gMusicCount
+new gMusicName[MAX_MUSIC], gMusicPath[MAX_MUSIC]
 
 new gRound, gMaxplayers
 public plugin_init(){
 	register_plugin("CS ACHIVEMNT SYSTEM", "1.0", "zhiJiaN")
-	register_logevent("eventEndRound"  ,2,"0=World triggered", "1=Round_Draw", "1=Round_End");
+	//register_logevent("eventEndRound"  ,2,"0=World triggered", "1=Round_Draw", "1=Round_End");
+	register_event("SendAudio","eventEndRound", "a", "2&%!MRAD_terwin", "2&%!MRAD_ctwin", "2&%!MRAD_rounddraw");
 	register_event("HLTV", "eventNewRound", "a", "1=0", "2=0");
 	register_message(get_user_msgid("DeathMsg"), "msgDeathMsg")
 	register_message(get_user_msgid("ScreenFade"), "msgScreenFade");
 	register_forward(FM_SetModel, "fw_SetModel")
+	RegisterHam(Ham_TakeDamage, "player", "fw_TakeDamage_post", 1)
 
 	gMaxplayers = get_maxplayers()
 
@@ -72,6 +80,9 @@ public plugin_init(){
 	register_stats(7, "[n]在本回合开始%s秒后第一个杀人!", 47, 1)
 	register_stats(8, "[n]已经连续生存了%s回合!", 47, 1)
 	register_stats(9, "[n]本回合在T队伍生存最久，%s秒!", 47, 1)
+	register_stats(10, "[n]在被砍了%s刀后活了下来!", 47, 1)
+
+	register_music("音乐盒ez4ence", "musicbox/ez4ence.mp3")
 }
 
 
@@ -87,6 +98,7 @@ public client_putinserver(id)
 	xFirstKill[id] = 0
 	xAliveTime[id] = 0
 	xAliveRound[id] = 0
+	xKnifeCount[id] = 0
 }
 
 new gCountSec
@@ -98,7 +110,7 @@ public eventNewRound(){
 	mKill = 0
 	mThrow = 0
 	mAT = 0
-	
+	mKC = 0
 
 	for(new id=1;id<33;++id){
 		for(new i=0;i<gCount;++i){
@@ -109,6 +121,7 @@ public eventNewRound(){
 		xFlash[id] = 0
 		xFirstKill[id] = 0
 		xAliveTime[id] = 0
+		xKnifeCount[id] = 0
 
 		xAliveRound[id] ++
 		if(xAliveRound[id]>0 && !(xAliveRound[id]%3) && xAliveRound[id] >= mAR){
@@ -142,6 +155,12 @@ public eventEndRound()
 	if(!gRound)
 		return
 
+	new parm[32] 
+	read_data(2,parm,31) 
+	new winteam
+	if(parm[7] == 't') winteam = 1
+	else if(parm[6] == 'c') winteam = 2
+
 	remove_task(3311)
 	formatex(gTempMvpMsg, charsmax(gTempMvpMsg), "")
 	formatex(gTempStatsMsg, charsmax(gTempMvpMsg), "")
@@ -171,11 +190,19 @@ public eventEndRound()
 		}
 	}
 
-	new mvp = calcMVP();
+	new mvp = calcMVP(winteam);
 	if(mvp > 0){
 		new mvpname[32]
 		get_user_name(mvp, mvpname, 31)
 		formatex(gTempMvpMsg, charsmax(gTempMvpMsg), "MVP：%s", mvpname)
+
+		/*for(new m; m<gMusicCount;++m){
+		{
+			if(正在使用(gMusicName[m]){
+				client_cmd(0, "mp3 play %s", gMusicPath[m])
+				break
+			}
+		}*/
 	}
 
 	calTopkill()
@@ -296,11 +323,11 @@ public getRndRoundStats(){
 	return playerrwspos[maxplayer]
 }
 
-public calcMVP(){
+public calcMVP(winteam){
 	new sctemp, scmax, scmaxid, szsctemp[33]
 	
 	for(new id = 1; id<=gMaxplayers; ++id){
-		if(!is_user_connected(id)) continue
+		if(!is_user_connected(id) || get_user_team(id) != winteam) continue
 
 		sctemp = 0
 		for(new i = 0; i<gCount; ++i){
@@ -320,7 +347,7 @@ public calcMVP(){
 
 	new count, szmvp[33]
 	for(new id = 1; id<=gMaxplayers; ++id){
-		if(!is_user_connected(id)) continue
+		if(!is_user_connected(id)  || get_user_team(id) != winteam) continue
 		if(szsctemp[id] == scmax){
 			szmvp[count] = id
 			count ++
@@ -597,9 +624,39 @@ update(){
 			updateParamByStatsId(id, 9, "%d", mAT)
 		}
 
+		if(mKC == xKnifeCount[id] && mKC>= 3){
+			updateStatsByStatsId(id, 10, 1)
+			updateParamByStatsId(id, 10, "%d", mKC)
+		}
+
 		if(mRoundTime <= 30){
 			updateStatsByStatsId(id, 5, 1)
 			updateParamByStatsId(id, 5, "%d", mRoundTime)
+		}
+	}
+}
+
+register_music(const name[], const path[]){
+	if(gMusicCount >= MAX_MUSIC)
+		return -1
+	formatex(gMusicName[gMusicCount], charsmax(gMusicName[]), name)
+	formatex(gMusicPath[gMusicCount], charsmax(gMusicPath[]), path)
+
+	gMusicCount ++
+	return gMusicCount - 1
+}
+
+public fw_TakeDamage_post(victim, inflictor, attacker, Float:damage, damage_type)
+{
+	if(attacker && attacker<33 && is_user_alive(attacker) && get_user_team(attacker) != get_user_team(victim)){
+
+		if(pev(victim,pev_health)<=floatround(damage)){
+			xKnifeCount[victim] = 0
+		}else{
+			xKnifeCount[victim] ++
+			if(xKnifeCount[victim]>=3 && xKnifeCount[victim] >= mKC){
+				mKC = xKnifeCount[victim]
+			}
 		}
 	}
 }
