@@ -64,7 +64,6 @@ public cas_fw_roundend(){
 	for(new id=1;id<=get_maxplayers();++id){
 		if(!is_user_connected(id)) continue
 
-		client_print(id,print_chat,"%d==%d", xFroz[id],mFroz)
 		if(mFroz == xFroz[id] && mFroz >= 3){
 			cas_updateStatsByStatsId(id, 100, 1)
 			cas_updateParamByStatsId(id, 100, "%d", mFroz)

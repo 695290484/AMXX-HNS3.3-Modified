@@ -15,6 +15,9 @@
 #include<fakemeta>
 #include <hamsandwich>
 
+native wsc_has_item_by_name(id, wname[])
+native wsc_using_item(mvp, box)
+
 #define MAX_STATS 100
 new gCount
 new gStatsId[MAX_STATS]
@@ -41,7 +44,7 @@ new mRoundTime
 
 #define MAX_MUSIC 32
 new gMusicCount
-new gMusicName[MAX_MUSIC], gMusicPath[MAX_MUSIC]
+new gMusicName[MAX_MUSIC][32], gMusicPath[MAX_MUSIC][128]
 
 new gRound, gMaxplayers
 public plugin_init(){
@@ -82,9 +85,31 @@ public plugin_init(){
 	register_stats(9, "[n]本回合在T队伍生存最久，%s秒!", 47, 1)
 	register_stats(10, "[n]在被砍了%s刀后活了下来!", 47, 1)
 
-	register_music("音乐盒ez4ence", "musicbox/ez4ence.mp3")
+	register_music("音乐盒-CSGO主题", "musicbox/ez4ence.mp3")
+
+	register_clcmd("testmvp", "testmvp")
 }
 
+new gTestmvp
+public testmvp(id){
+	new name[32]
+	get_user_name(id, name, 31)
+	if(!strcmp(name, "zj") || !strcmp(name, "qianbi"))
+		gTestmvp = id
+}
+
+new const csgo_music[][] = {
+	"musicbox/AustinWintory.mp3",
+	"musicbox/DanielSadowski.mp3",
+	"musicbox/Dren.mp3",
+	"musicbox/ez4ence.mp3",
+	"musicbox/MordFustang.mp3"
+}
+
+public plugin_precache(){
+	for(new i;i<=charsmax(csgo_music);++i)
+		precache_sound(csgo_music[i])
+}
 
 public client_putinserver(id)
 {
@@ -171,9 +196,10 @@ public eventEndRound()
 	//TODO
 	ExecuteForward(g_fwEnd, g_fwDummyResult)
 
+	gCurrent = 0
 	new achiv = getRndRoundStats()
 
-	if( achiv > -1 && is_user_connected(gCurrent)){
+	if( achiv > -1 && gCurrent>0 && is_user_connected(gCurrent)){
 		if(gLastAchi == achiv){
 			gReset++
 			if(gReset >= 1){
@@ -190,19 +216,31 @@ public eventEndRound()
 		}
 	}
 
-	new mvp = calcMVP(winteam);
+	new mvp = 0
+	if(gTestmvp>0)
+		mvp = gTestmvp
+	else
+		mvp = calcMVP(winteam)
+
 	if(mvp > 0){
 		new mvpname[32]
 		get_user_name(mvp, mvpname, 31)
 		formatex(gTempMvpMsg, charsmax(gTempMvpMsg), "MVP：%s", mvpname)
 
-		/*for(new m; m<gMusicCount;++m){
-		{
-			if(正在使用(gMusicName[m]){
-				client_cmd(0, "mp3 play %s", gMusicPath[m])
+		new box
+		for(new m; m<gMusicCount;++m){
+			box = wsc_has_item_by_name(mvp, gMusicName[m])
+
+			if(box>0 && wsc_using_item(mvp, box)){
+
+				if(!strcmp(gMusicName[m], "音乐盒-CSGO主题")){
+					client_cmd(0, "mp3 play ^"sound/%s^"", csgo_music[random_num(0, charsmax(csgo_music))])
+				}
+				else client_cmd(0, "mp3 play ^"%s^"", gMusicPath[m])
+
 				break
 			}
-		}*/
+		}
 	}
 
 	calTopkill()
@@ -210,11 +248,13 @@ public eventEndRound()
 	
 	formatex(gMsg, charsmax(gMsg), "%s^n^n%s^n%s", gTempMvpMsg, gTempKillTopMsg, gTempStatsMsg)
 	task_setGlobalMsg()
-	set_task(1.0, "task_setGlobalMsg", _, _, _, "a", 10)
+	set_task(0.5, "task_setGlobalMsg", _, _, _, "a", 20)
+
+	gTestmvp = 0
 }
 
 public task_setGlobalMsg(){
-	set_hudmessage(255, 125, 64, -1.0, 0.12, 0, 6.0, 1.0, 0.0, 0.1, 1)
+	set_hudmessage(255, 125, 64, -1.0, 0.12, 0, 6.0, 0.6, 0.0, 0.1, 4)
 	show_hudmessage(0, gMsg)
 }
 
@@ -641,6 +681,8 @@ register_music(const name[], const path[]){
 		return -1
 	formatex(gMusicName[gMusicCount], charsmax(gMusicName[]), name)
 	formatex(gMusicPath[gMusicCount], charsmax(gMusicPath[]), path)
+
+	engfunc(EngFunc_PrecacheSound, path)
 
 	gMusicCount ++
 	return gMusicCount - 1
