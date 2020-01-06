@@ -126,6 +126,21 @@ public client_putinserver(id)
 	xKnifeCount[id] = 0
 }
 
+public client_disconnect(id)
+{
+	for(new i=0;i<gCount;++i){
+		gStats[id][i] = 0
+		gRoundStats[id][i] = 0
+	}
+	xKill[id] = 0
+	xThrow[id] = 0
+	xFlash[id] = 0
+	xFirstKill[id] = 0
+	xAliveTime[id] = 0
+	xAliveRound[id] = 0
+	xKnifeCount[id] = 0
+}
+
 new gCountSec
 public eventNewRound(){
 	ExecuteForward(g_fwStart, g_fwDummyResult)
