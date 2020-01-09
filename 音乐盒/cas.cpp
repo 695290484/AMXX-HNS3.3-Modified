@@ -226,8 +226,10 @@ public eventEndRound()
 
 			new name[32]
 			get_user_name(gCurrent, name, 31)
-			replace_all(gAchivname[achiv], charsmax(gAchivname[]), "[n]", name)
-			GetStatsMsg(gTempStatsMsg, charsmax(gTempStatsMsg), gAchivname[achiv], gShowHudParam[achiv])
+			new tmpAchivname[128]
+			formatex(tmpAchivname, charsmax(tmpAchivname), "%s", gAchivname[achiv])
+			replace_all(tmpAchivname, charsmax(tmpAchivname), "[n]", name)
+			GetStatsMsg(gTempStatsMsg, charsmax(gTempStatsMsg), tmpAchivname, gShowHudParam[achiv])
 		}
 	}
 
