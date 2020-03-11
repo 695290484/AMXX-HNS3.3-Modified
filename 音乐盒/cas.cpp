@@ -1,5 +1,4 @@
 // 要求 : AMXX 1.8.2 
-// SQL : nick statsid scount
 /* 注： 
 	回合结束会显示统计数据（包括特殊信息，MVP，击杀榜）
 	特殊信息比如xxx验证了万有引力定律，和MVP无关，只和该信息注册时的比重有关
@@ -15,17 +14,20 @@
 #include<fakemeta>
 #include <hamsandwich>
 
-native wsc_has_item_by_name(id, wname[])
-native wsc_using_item(mvp, box)
+//native wsc_has_item_by_name(id, wname[])
+//native wsc_using_item(mvp, box)
+
+wsc_has_item_by_name(id, wname[]) return 1
+wsc_using_item(mvp, box) return 1
 
 #define MAX_STATS 100
 new gCount
 new gStatsId[MAX_STATS]
 new gStats[33][MAX_STATS]			// 总的
-new gRoundStats[33][MAX_STATS]		// 回合
+new gRoundStats[33][MAX_STATS]			// 回合
 new gAchivname[MAX_STATS][128]
 new gShowlevel[MAX_STATS]			// 决定短语显示
-new gScore[MAX_STATS]			// 决定mvp得分
+new gScore[MAX_STATS]				// 决定mvp得分
 new gShowHudParam[MAX_STATS][32]
 
 new gLastAchi = -1, gCurrent = 0, gReset
@@ -87,14 +89,14 @@ public plugin_init(){
 
 	register_music("音乐盒-CSGO主题", "musicbox/ez4ence.mp3")
 
-	register_clcmd("testmvp", "testmvp")
+	//register_clcmd("testmvp", "testmvp")
 }
 
 new gTestmvp
 public testmvp(id){
 	new name[32]
 	get_user_name(id, name, 31)
-	if(!strcmp(name, "zj") || !strcmp(name, "qianbi"))
+	if(!strcmp(name, "zj"))
 		gTestmvp = id
 }
 
